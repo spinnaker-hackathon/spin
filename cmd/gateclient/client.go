@@ -293,6 +293,7 @@ func InitializeHTTPClient(auth *auth.Config) (*http.Client, error) {
 // Authenticate is helper function to attempt to authenticate with OAuth2,
 // Google Service Account or LDAP as configured in the auth.Config.
 func Authenticate(output func(string), httpClient *http.Client, endpoint string, auth *auth.Config) (updatedConfig bool, err error) {
+	fmt.Println("!!!!!!!!!!!!!!!!!!!!")
 	updatedConfig, err = authenticateOAuth2(output, httpClient, endpoint, auth)
 	if updatedConfig || err != nil {
 		return updatedConfig, err
@@ -375,6 +376,8 @@ func initializeX509Config(client http.Client, clientCA []byte, cert tls.Certific
 }
 
 func authenticateOAuth2(output func(string), httpClient *http.Client, endpoint string, auth *auth.Config) (configUpdated bool, err error) {
+	fmt.Println("$$$$$$$$$$$$$$$$$")
+	fmt.Printf("%+v\n", auth)
 	if auth != nil && auth.Enabled && auth.OAuth2 != nil {
 		OAuth2 := auth.OAuth2
 		if !OAuth2.IsValid() {
@@ -439,7 +442,9 @@ func authenticateOAuth2(output func(string), httpClient *http.Client, endpoint s
 	return false, nil
 }
 
+//func authenticateSaml()
 func authenticateIAP(auth *auth.Config) (string, error) {
+	fmt.Println("^^^^^^^^^^^^^^")
 	iapConfig := auth.Iap
 	token, err := iap.GetIapToken(*iapConfig)
 	return token, err

@@ -20,18 +20,19 @@ import (
 	config "github.com/spinnaker/spin/config/auth/iap"
 	"github.com/spinnaker/spin/config/auth/ldap"
 	"github.com/spinnaker/spin/config/auth/oauth2"
+	"github.com/spinnaker/spin/config/auth/saml"
 	"github.com/spinnaker/spin/config/auth/x509"
 )
 
 // Config is the CLI's authentication configuration.
 type Config struct {
-	Enabled          bool           `yaml:"enabled"`
-	IgnoreCertErrors bool           `yaml:"ignoreCertErrors"`
-	X509             *x509.Config   `yaml:"x509,omitempty"`
-	OAuth2           *oauth2.Config `yaml:"oauth2,omitempty"`
-	Basic            *basic.Config  `yaml:"basic,omitempty"`
-	Iap              *config.Config `yaml:"iap,omitempty"`
-	Ldap             *ldap.Config   `yaml:"ldap,omitempty"`
-
-	GoogleServiceAccount *gsa.Config `yaml:"google_service_account,omitempty"`
+	Enabled          		bool           `yaml:"enabled"`
+	IgnoreCertErrors 		bool           `yaml:"ignoreCertErrors"`
+	X509             		*x509.Config   `yaml:"x509,omitempty"`
+	OAuth2           		*oauth2.Config `yaml:"oauth2,omitempty"`
+	Basic            		*basic.Config  `yaml:"basic,omitempty"`
+	Iap              		*config.Config `yaml:"iap,omitempty"`
+	Ldap             		*ldap.Config   `yaml:"ldap,omitempty"`
+	Saml             	 	*saml.Config   `yaml:"saml,omitempty"`
+	GoogleServiceAccount 	*gsa.Config    `yaml:"google_service_account,omitempty"`
 }
