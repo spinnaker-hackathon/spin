@@ -35,6 +35,9 @@ import (
 	"strings"
 	"syscall"
 
+	"crypto/rsa"
+	"github.com/crewjam/saml/samlsp"
+
 	"github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/spinnaker/spin/cmd/output"
@@ -153,6 +156,13 @@ func NewGateClient(ui output.Ui, gateEndpoint, defaultHeaders, configLocation st
 	if updatedConfig {
 		ui.Info(updatedMessage)
 		_ = gateClient.writeYAMLConfig()
+	}
+
+	if gateClient.Config.Auth.Saml != nil {
+		if err = authenticateSaml(ui.Output, httpClient, gateClient.GateEndpoint(), gateClient.Config.Auth); err != nil {
+			ui.Error("SAML Authentication Failed")
+			return nil, unwrapErr(ui, err)
+		}
 	}
 
 	if gateClient.Config.Auth.Ldap != nil {
@@ -381,8 +391,66 @@ func initializeX509Config(client http.Client, clientCA []byte, cert tls.Certific
 	return &client
 }
 
+func hello(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Hello, %s!", samlsp.AttributeFromContext(r.Context(), "cn"))
+}
+
+func authenticateSaml(output func(string), httpClient *http.Client, endpoint string, auth *auth.Config) error {
+	// res, err := http.Get("https://cloudera-sandbox.okta.com/app/exk1igia8qyltMKl40h8/sso/saml/metadata")
+	// if err != nil {
+	// 	return err
+	// }
+
+	// rawMetadata, err := ioutil.ReadAll(res.Body)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// metadata := &types.EntityDescriptor{}
+	// err = xml.Unmarshal(rawMetadata, metadata)
+	// if err != nil {
+	// 	return err
+	// }
+
+	keyPair, err := tls.LoadX509KeyPair("/home/chini/Documents/repos/spinnaker/spinnaker-helm/environments/sd-dev/configs/files/saml/saml.cert", "/home/chini/Documents/repos/spinnaker/spinnaker-helm/environments/sd-dev/configs/files/saml/saml-decrypted.pem")
+	if err != nil {
+		panic(err) // TODO handle error
+	}
+	keyPair.Leaf, err = x509.ParseCertificate(keyPair.Certificate[0])
+	if err != nil {
+		panic(err) // TODO handle error
+	}
+
+	rootURL, _ := url.Parse("http://localhost:8000")
+	idpMetadataURL, _ := url.Parse("https://cloudera-sandbox.okta.com/app/exk1igia8qyltMKl40h8/sso/saml/metadata")
+
+	idpMetadata, err := samlsp.FetchMetadata(
+		context.Background(),
+		http.DefaultClient,
+		*idpMetadataURL)
+	if err != nil {
+		panic(err) // TODO handle error
+	}
+
+	samlSP, err := samlsp.New(samlsp.Options{
+		URL:         *rootURL,
+		IDPMetadata: idpMetadata,
+		Key:         keyPair.PrivateKey.(*rsa.PrivateKey),
+		Certificate: keyPair.Leaf,
+	})
+	if err != nil {
+		panic(err) // TODO handle error
+	}
+
+	app := http.HandlerFunc(hello)
+	http.Handle("/hello", samlSP.RequireAccount(app))
+	http.Handle("/saml/", samlSP)
+	http.ListenAndServe(":8000", nil)
+
+	return nil
+}
+
 func authenticateOAuth2(output func(string), httpClient *http.Client, endpoint string, auth *auth.Config) (configUpdated bool, err error) {
-	fmt.Println("$$$$$$$$$$$$$$$$$")
 	fmt.Printf("%+v\n", auth)
 	if auth != nil && auth.Enabled && auth.OAuth2 != nil {
 		OAuth2 := auth.OAuth2
@@ -448,9 +516,7 @@ func authenticateOAuth2(output func(string), httpClient *http.Client, endpoint s
 	return false, nil
 }
 
-//func authenticateSaml()
 func authenticateIAP(auth *auth.Config) (string, error) {
-	fmt.Println("^^^^^^^^^^^^^^")
 	iapConfig := auth.Iap
 	token, err := iap.GetIapToken(*iapConfig)
 	return token, err
